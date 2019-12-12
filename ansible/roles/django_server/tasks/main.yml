@@ -1,0 +1,80 @@
+---
+- name: make sure required packages are installed
+  package:
+    name:
+      - nginx
+      - git
+      - python3.6
+      - python3-pip
+    state: present
+
+- name: install pipenv
+  pip:
+    name: pipenv
+    executable: pip3
+
+- name: allow long hostnames in nginx
+  lineinfile:
+    dest: /etc/nginx/nginx.conf
+    regexp: '(\s+)#? ?server_names_hash_bucket_size'
+    backrefs: yes
+    line: '\1server_names_hash_bucket_size 64;'
+
+- name: disable nginx's default site
+  file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+  notify:
+    - restart nginx
+
+- name: add nginx config to sites-available
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/{{ host }}
+  notify:
+    - restart nginx
+
+- name: add symlink in nginx sites-enabled
+  file:
+    src: /etc/nginx/sites-available/{{ host }}
+    dest: /etc/nginx/sites-enabled/{{ host }}
+    state: link
+  notify:
+    - restart nginx
+
+- name: write gunicorn service script
+  template:
+    src: gunicorn.service.j2
+    dest: /etc/systemd/system/gunicorn-{{ host }}.service
+  notify:
+    - restart gunicorn
+
+- name: Create local directory for project if it does not exist
+  file:
+    path: /home/{{ ansible_ssh_user }}/sites/{{ host }}
+    state: directory
+    mode: "1777"
+
+- name: clone django-website repo
+  git:
+    repo: git@github.com:lockejan/django-website.git
+    version: master
+    dest: /home/{{ ansible_ssh_user }}/sites/{{ host }}
+    accept_hostkey: yes
+  become: no
+
+- name: restore dependencies via pipenv
+  command: pipenv install
+  args:
+    chdir: "/home/{{ ansible_ssh_user }}/sites/{{ host }}"
+  environment:
+    LC_ALL: "C.UTF-8"
+    LANG: "C.UTF-8"
+
+- name: run pipenv scripts for db migration
+  command: pipenv run migrate
+  args:
+    chdir: "/home/{{ ansible_ssh_user }}/sites/{{ host }}"
+  environment:
+    LC_ALL: "C.UTF-8"
+    LANG: "C.UTF-8"

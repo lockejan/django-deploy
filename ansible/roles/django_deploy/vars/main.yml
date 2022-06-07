@@ -1,6 +1,10 @@
 ---
 app_name: "superlists"
+email_host: "mail.foo.de"
+email_password: "foo-bar-baz"
+email_user: "foo@example.de"
 host: "{{ inventory_hostname }}"
+host_cert: "cert-path"
 no_debug: "y"
 repo_name: tdd-with-python
 repo_url: git@github.com:lockejan/tdd-with-python.git

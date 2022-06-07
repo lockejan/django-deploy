@@ -3,10 +3,12 @@
   service:
     name: nginx
     state: restarted
+  become_user: root
 
 - name: restart gunicorn
   systemd:
-    name: gunicorn-{{ host }}
+    name: gunicorn-{{ sitename | default(host) }}
     daemon_reload: yes
     enabled: yes
     state: restarted
+  become_user: root

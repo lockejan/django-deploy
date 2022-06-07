@@ -1,0 +1,104 @@
+---
+# - name: add ppa for python 3.7
+#   apt_repository:
+#     repo: ppa:deadsnakes/ppa
+#     state: present
+
+- name: make sure required packages are installed
+  package:
+    name:
+      - nginx
+      - git
+      - python3
+      - python3-pip
+      - python3-venv
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  become_user: root
+
+# - name: clone django-website repo
+#   git:
+#     repo: 'https://{{ token }}@github.com/{{ username }}/{{ repo_name }}'
+#     version: master
+#     dest: /home/{{ ansible_ssh_user }}/sites/{{ sitename | default(host) }}
+#     accept_hostkey: yes
+#   become: false
+
+- name: update or clone project source
+  git:
+    repo: "{{ repo_url }}"
+    version: master
+    dest: "{{ ansible_env.HOME }}/sites/{{ sitename | default(host) }}"
+    accept_hostkey: yes
+    clone: yes
+    force: yes
+  become: false
+
+- name: create random but idempotent password
+  set_fact:
+    password: "{{ lookup('password', '/dev/null', seed=inventory_hostname) }}"
+
+- name: create env file
+  template:
+    src: env.j2
+    dest: "{{ ansible_env.HOME }}/sites/{{ sitename | default(host) }}/.env"
+  notify:
+    - restart gunicorn
+
+- name: ensure venv exists and install dependencies into it
+  pip:
+    chdir: "{{ ansible_env.HOME }}/sites/{{ sitename | default(host) }}"
+    requirements: requirements.txt
+    virtualenv: venv
+    virtualenv_command: "python3 -m venv"
+
+- name: apply django migrations
+  command: ./venv/bin/python3 manage.py migrate --noinput
+  args:
+    chdir: "{{ ansible_env.HOME }}/sites/{{ sitename | default(host) }}"
+
+- name: gather static files to served
+  command: ./venv/bin/python3  manage.py collectstatic --noinput
+  args:
+    chdir: "{{ ansible_env.HOME }}/sites/{{ sitename | default(host) }}"
+
+- name: allow long hostnames in nginx
+  lineinfile:
+    dest: /etc/nginx/nginx.conf
+    regexp: '(\s+)#? ?server_names_hash_bucket_size'
+    backrefs: yes
+    line: '\1server_names_hash_bucket_size 64;'
+
+- name: disable nginx's default site
+  file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+  notify:
+    - restart nginx
+
+- name: add nginx config to sites-available
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/{{ sitename | default(host) }}.conf
+  become_user: root
+  notify:
+    - restart nginx
+
+- name: add symlink in nginx sites-enabled
+  file:
+    src: /etc/nginx/sites-available/{{ sitename | default(host) }}.conf
+    dest: /etc/nginx/sites-enabled/{{ sitename | default(host) }}
+    state: link
+  become_user: root
+  notify:
+    - restart nginx
+
+- name: write gunicorn service script
+  template:
+    src: gunicorn.service.j2
+    dest: /etc/systemd/system/gunicorn-{{ sitename | default(host) }}.service
+  become_user: root
+  notify:
+    - restart gunicorn
+

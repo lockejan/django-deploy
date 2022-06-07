@@ -1,0 +1,7 @@
+---
+app_name: "superlists"
+host: "{{ inventory_hostname }}"
+no_debug: "y"
+repo_name: tdd-with-python
+repo_url: git@github.com:lockejan/tdd-with-python.git
+sitename: "todo.smittie.de"

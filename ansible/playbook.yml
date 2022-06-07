@@ -1,6 +1,7 @@
 ---
 - hosts: all
-  gather_facts: yes
+  gather_facts: true
   become: true
+  become_user: "{{ ansible_ssh_user }}"
   roles:
-    - role: django_server
+    - role: django_deploy

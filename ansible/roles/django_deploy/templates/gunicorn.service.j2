@@ -1,0 +1,17 @@
+[Unit]
+Description=Gunicorn server for {{ sitename | default(host) }}
+
+[Service]
+Restart=on-failure
+User={{ ansible_ssh_user }}
+WorkingDirectory=/home/{{ ansible_ssh_user }}/sites/{{ sitename | default(host) }}
+EnvironmentFile=/home/{{ ansible_ssh_user }}/sites/{{ sitename | default(host) }}/.env
+
+ExecStart=/home/{{ ansible_ssh_user }}/sites/{{ sitename | default(host) }}/venv/bin/gunicorn \
+    --bind unix:/tmp/{{ sitename | default(host) }}.socket \
+    --access-logfile ../access.log \
+    --error-logfile ../error.log \
+    {{ app_name }}.wsgi:application
+
+[Install]
+WantedBy=multi-user.target

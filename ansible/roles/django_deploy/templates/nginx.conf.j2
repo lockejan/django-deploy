@@ -1,3 +1,4 @@
+# // vim: set ft=nginx:
 
 # generated 2021-08-08, Mozilla Guideline v5.6, nginx 1.18.0, OpenSSL 1.1.1f, modern configuration
 # https://ssl-config.mozilla.org/#server=nginx&version=1.18.0&config=modern&openssl=1.1.1f&guideline=5.6
@@ -31,8 +32,8 @@ server {
         proxy_pass http://unix:/tmp/{{ sitename | default(host) }}.socket;
     }
 
-    ssl_certificate /etc/letsencrypt/live/{{ host_cert }}/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/{{ host_cert }}/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/{{ sitename | default(host_cert) }}/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/{{ sitename | default(host_cert) }}/privkey.pem; # managed by Certbot
     ssl_session_timeout 5m;
     ssl_session_cache shared:MozSSL:10m;  # about 40000 sessions
     ssl_session_tickets off;
